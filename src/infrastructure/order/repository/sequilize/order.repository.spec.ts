@@ -113,16 +113,106 @@ describe("Order repository test", () => {
     expect(order).toStrictEqual(orderResult);
   });
 
-  it("should throw an error while trying update order", async () => {
+  it("should update order", async () => {
+    const customer = await addCustomer();
+
+    const productRepository = new ProductRepository();
+    const product = new Product("123", "Product 1", 10);
+    await productRepository.create(product);
+
+    const orderItem = new OrderItem(
+      "1",
+      product.name,
+      product.price,
+      product.id,
+      2
+    );
+
+    let orderItems = [orderItem];
+
+    let order = new Order("123", customer.id, orderItems);
+
     const orderRepository = new OrderRepository();
+    await orderRepository.create(order);
 
-    const orderItem = new OrderItem("123", "123", 1, "123", 1);
+    const newOrderItem = new OrderItem(
+      "2",
+      product.name,
+      product.price,
+      product.id,
+      4
+    );
 
-    const order = new Order("123", "123", [orderItem]);
+    orderItems = [newOrderItem];
 
-    expect(async () => {
-      await orderRepository.update(order);
-    }).rejects.toThrow("Order cant be updated");
+    //first check
+    order = new Order("123", customer.id, orderItems);
+
+    await orderRepository.update(order);
+
+    let orderModel = await OrderModel.findOne({
+      where: { id: order.id },
+      include: ["items"],
+    });
+
+    expect(orderModel.items.length).toEqual(1);
+
+    expect(orderModel.toJSON()).toStrictEqual({
+      id: order.id,
+      customer_id: customer.id,
+      total: order.total(),
+      items: orderItems.map((item) => ({
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        order_id: order.id,
+        product_id: item.productId,
+      })),
+    });
+
+    //second check
+    const newOrderItem2 = new OrderItem(
+      "3",
+      product.name,
+      product.price,
+      product.id,
+      1
+    );
+    const newOrderItem3 = new OrderItem(
+      "43",
+      product.name,
+      product.price,
+      product.id,
+      5
+    );
+
+    orderItems = [newOrderItem, newOrderItem2, newOrderItem3];
+
+    order = new Order("123", customer.id, orderItems);
+
+    await orderRepository.update(order);
+
+    orderModel = await OrderModel.findOne({
+      where: { id: order.id },
+      include: ["items"],
+    });
+
+    expect(orderModel.items.length).toEqual(3);
+
+    expect(orderModel.toJSON()).toStrictEqual({
+      id: order.id,
+      customer_id: customer.id,
+      total: order.total(),
+      items: orderItems.map((item) => ({
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        order_id: order.id,
+        product_id: item.productId,
+      })),
+    });
   });
 
   it("should throw an error when order is not found", async () => {

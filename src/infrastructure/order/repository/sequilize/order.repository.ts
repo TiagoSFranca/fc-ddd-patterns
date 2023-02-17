@@ -26,7 +26,34 @@ export default class OrderRepository implements OrderRepositoryInterface {
   }
 
   async update(entity: Order): Promise<void> {
-    throw new Error("Order cant be updated");
+    await OrderModel.update(
+      {
+        customer_id: entity.customerId,
+        total: entity.total(),
+      },
+      {
+        where: {
+          id: entity.id,
+        },
+      }
+    ).then(() => {
+      OrderItemModel.destroy({
+        where: {
+          order_id: entity.id,
+        },
+      });
+
+      OrderItemModel.bulkCreate(
+        entity.items.map((item) => ({
+          order_id: entity.id,
+          id: item.id,
+          name: item.name,
+          price: item.price,
+          product_id: item.productId,
+          quantity: item.quantity,
+        }))
+      );
+    });
   }
 
   async find(id: string): Promise<Order> {
